@@ -6,7 +6,8 @@
     "trackingStart": "2026-08",
     "mileageRate": 0.65,
     "overtimeMultiplier": 1.5,
-    "payrollDay": 26
+    "payrollDay": 26,
+    "year": 2026
   },
   "policy": {
     "defaultVacationDays": 15,
@@ -23,9 +24,19 @@
       "hoursPerDay": 8,
       "hourlyRate": null,
       "annualSalary": null,
-      "monthlyBonus": 300,
-      "entitlements": { "vacationDays": 20, "sickDays": 3, "personalDays": 2 },
-      "priorUsed": { "2026": { "vacationDays": 0, "sickDays": 0, "personalDays": 0 } },
+      "monthlyBonus": 0,
+      "entitlements": {
+        "vacationDays": 20,
+        "sickDays": 3,
+        "personalDays": 2
+      },
+      "priorUsed": {
+        "2026": {
+          "vacationDays": 4,
+          "sickDays": 1,
+          "personalDays": 2
+        }
+      },
       "months": {}
     },
     {
@@ -37,8 +48,18 @@
       "hourlyRate": null,
       "annualSalary": null,
       "monthlyBonus": 0,
-      "entitlements": { "vacationDays": 15, "sickDays": 3, "personalDays": 2 },
-      "priorUsed": { "2026": { "vacationDays": 0, "sickDays": 0, "personalDays": 0 } },
+      "entitlements": {
+        "vacationDays": 15,
+        "sickDays": 3,
+        "personalDays": 2
+      },
+      "priorUsed": {
+        "2026": {
+          "vacationDays": 0,
+          "sickDays": 0,
+          "personalDays": 0
+        }
+      },
       "months": {}
     }
   ]
