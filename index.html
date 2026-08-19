@@ -30,6 +30,13 @@
   header.top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px}
   .brand{display:flex;align-items:center;gap:12px}
   .logo{height:42px;width:auto;display:block}
+  .save-status{font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:8px;white-space:nowrap}
+  .save-status .dot{width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block}
+  .save-status.dirty{color:var(--amber);background:rgba(224,165,61,.14)}
+  .save-status.clean{color:var(--green);background:rgba(63,181,122,.12)}
+  .btn.primary.attn{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--amber)}
+  @keyframes pulseDot{0%,100%{opacity:1}50%{opacity:.35}}
+  .save-status.dirty .dot{animation:pulseDot 1.4s ease-in-out infinite}
   .unit-toggle{display:flex;align-items:center;gap:6px}
   .unit-toggle .ut-label{font-size:12px;color:var(--muted);font-weight:600}
   .ut-btn{background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer}
@@ -145,6 +152,7 @@
       <button class="btn small" id="empBtn" title="Add or edit employees">Employees</button>
       <button class="btn small ghost" id="themeBtn" title="Light / dark">◐</button>
       <button class="btn small" id="importBtn" title="Load a data.json">Import</button>
+      <span id="saveStatus" class="save-status"></span>
       <button class="btn small primary" id="exportBtn" title="Download data.json to commit to GitHub">↓ data.json</button>
       <input type="file" id="fileInput" accept="application/json,.json" class="hide" />
     </div>
@@ -221,6 +229,7 @@ SEED = {
 
 /* ---------------- load / save ---------------- */
 async function boot(){
+  let fromRepo=false;
   const local=localStorage.getItem(STORE_KEY);
   if(local){ try{DATA=JSON.parse(local);}catch(e){DATA=null;} }
   // migrate older browser copy (v3 stored PTO in days; v4 stores hours)
@@ -229,25 +238,31 @@ async function boot(){
       (o.employees||[]).forEach(e=>{ const hpd=e.hoursPerDay||8;
         Object.values(e.months||{}).forEach(rec=>["vac","sick","pday"].forEach(f=>{ if(rec[f]!=null) rec[f]=+(rec[f]*hpd).toFixed(4); })); });
       DATA=o; localStorage.removeItem("brk_payroll_v3"); save(); }catch(e){} } }
-  if(!DATA){ try{ const r=await fetch("./data.json",{cache:"no-store"}); if(r.ok) DATA=await r.json(); }catch(e){} }
-  if(!DATA) DATA=deepCopy(SEED);
+  if(!DATA){ try{ const r=await fetch("./data.json",{cache:"no-store"}); if(r.ok){ DATA=await r.json(); fromRepo=true; } }catch(e){} }
+  if(!DATA){ DATA=deepCopy(SEED); fromRepo=true; }
   if(!DATA.company.year) DATA.company.year = Math.max(DATA.company.startYear||now.getFullYear(), now.getFullYear());
+  if(fromRepo) markExported(); // browser copy matches the repo file on a clean load
   render();
 }
 function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(DATA)); }
 function deepCopy(o){ return JSON.parse(JSON.stringify(o)); }
+// signature tracking: is the browser copy different from the last exported data.json?
+function sig(o){ const s=JSON.stringify(o); let h=5381; for(let i=0;i<s.length;i++){ h=((h<<5)+h+s.charCodeAt(i))|0; } return String(h); }
+function markExported(){ try{ localStorage.setItem("brk_export_sig", sig(DATA)); }catch(e){} }
+function isDirty(){ return sig(DATA)!==localStorage.getItem("brk_export_sig"); }
 async function reloadFromFile(){
   try{ const r=await fetch("./data.json",{cache:"no-store"}); if(!r.ok) throw 0;
-    DATA=await r.json(); save(); render(); toast("Reloaded from data.json"); }
-  catch(e){ if(confirm("Couldn't read data.json (did you open the file directly instead of hosting it?). Reset to the built-in starting setup instead?")){ DATA=deepCopy(SEED); save(); render(); toast("Reset"); } }
+    DATA=await r.json(); save(); markExported(); render(); toast("Reloaded from data.json"); }
+  catch(e){ if(confirm("Couldn't read data.json (did you open the file directly instead of hosting it?). Reset to the built-in starting setup instead?")){ DATA=deepCopy(SEED); save(); markExported(); render(); toast("Reset"); } }
 }
 function exportJSON(){
   const blob=new Blob([JSON.stringify(DATA,null,2)],{type:"application/json"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="data.json"; a.click(); URL.revokeObjectURL(a.href);
-  toast("data.json downloaded — commit it to your repo");
+  markExported(); render();
+  toast("data.json downloaded — commit it to your repo to save it");
 }
 function importJSON(file){ const fr=new FileReader();
-  fr.onload=()=>{ try{ DATA=JSON.parse(fr.result); save(); render(); toast("Imported"); }catch(e){ alert("That file isn't valid JSON."); } };
+  fr.onload=()=>{ try{ DATA=JSON.parse(fr.result); save(); markExported(); render(); toast("Imported"); }catch(e){ alert("That file isn't valid JSON."); } };
   fr.readAsText(file); }
 
 /* ---------------- holiday engine (rule-based, any year) ---------------- */
@@ -367,8 +382,19 @@ function buildTabs(){ const t=document.getElementById("tabs"); t.innerHTML="";
   t.appendChild(mk("month","Month view"));
   DATA.employees.forEach(e=>t.appendChild(mk("emp:"+e.id,e.firstName)));
   t.appendChild(mk("year","Year summary")); }
+function updateSaveStatus(){
+  const ss=document.getElementById("saveStatus"), eb=document.getElementById("exportBtn");
+  if(!ss) return;
+  const d=isDirty();
+  ss.className="save-status "+(d?"dirty":"clean");
+  ss.innerHTML=`<span class="dot"></span>${d?"Unsaved changes":"Saved"}`;
+  ss.title=d ? "Your browser has edits that aren't in data.json yet. Click ↓ data.json, then commit the file to your repo."
+             : "Your browser matches the last exported / committed data.json.";
+  if(eb) eb.classList.toggle("attn", d);
+}
 function render(){
   document.getElementById("subtitle").textContent=`${DATA.company.name} · ${curYear()}`;
+  updateSaveStatus();
   buildYearSelect(); buildTabs();
   const app=document.getElementById("app");
   if(VIEW==="month") app.innerHTML=renderMonth();
@@ -636,7 +662,7 @@ function openEmpForm(id){
 }
 function showModal(html){ const h=document.getElementById("modalHost");
   h.innerHTML=`<div class="overlay"><div class="modal">${html}</div></div>`;
-  h.querySelector(".overlay").onclick=(ev)=>{ if(ev.target===h.querySelector(".overlay")) closeModal(); };
+  // intentionally no click-outside-to-close: the modal only closes via Cancel/Close/Save
   h.querySelectorAll("[data-close]").forEach(b=>b.onclick=closeModal); }
 function closeModal(){ document.getElementById("modalHost").innerHTML=""; }
 
