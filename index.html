@@ -328,18 +328,21 @@ function lastWeekday(y,mo,weekday){
 }
 function iso(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function computeHolidays(y){
-  const gf=easter(y); gf.setDate(gf.getDate()-2);
-  const tg=nthWeekday(y,10,4,4);
+  const gf=easter(y); gf.setDate(gf.getDate()-2); // Good Friday = 2 days before Easter
+  const tg=nthWeekday(y,10,4,4);                  // Thanksgiving = 4th Thursday of November
   const dayAfter=new Date(tg); dayAfter.setDate(tg.getDate()+1);
   return [
-    {date:iso(new Date(y,0,1)),  name:"New Year's Day"},
-    {date:iso(gf),               name:"Good Friday"},
-    {date:iso(lastWeekday(y,4,1)),name:"Memorial Day"},
-    {date:iso(new Date(y,6,4)),  name:"Independence Day"},
-    {date:iso(nthWeekday(y,8,1,1)),name:"Labor Day"},
-    {date:iso(tg),               name:"Thanksgiving Day"},
-    {date:iso(dayAfter),         name:"Day after Thanksgiving"},
-    {date:iso(new Date(y,11,25)),name:"Christmas Day"},
+    {date:iso(new Date(y,0,1)),     name:"New Year's Day"},
+    {date:iso(nthWeekday(y,0,1,3)), name:"Martin Luther King Jr. Day"},   // 3rd Monday of January
+    {date:iso(gf),                  name:"Good Friday"},
+    {date:iso(lastWeekday(y,4,1)),  name:"Memorial Day"},                 // last Monday of May
+    {date:iso(new Date(y,5,19)),    name:"Juneteenth National Independence Day"},
+    {date:iso(new Date(y,6,4)),     name:"Independence Day"},
+    {date:iso(nthWeekday(y,8,1,1)), name:"Labor Day"},                    // 1st Monday of September
+    {date:iso(new Date(y,10,11)),   name:"Veterans Day"},
+    {date:iso(tg),                  name:"Thanksgiving Day"},
+    {date:iso(dayAfter),            name:"Day after Thanksgiving"},
+    {date:iso(new Date(y,11,25)),   name:"Christmas Day"},
   ];
 }
 function holidaysForYear(y){

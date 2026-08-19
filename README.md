@@ -11,11 +11,12 @@ free to host on GitHub Pages.
 
 ## How the numbers work
 
-- **The calendar builds itself for any year.** Paid company holidays (New Year's, Good Friday,
-  Memorial Day, July 4, Labor Day, Thanksgiving + the Friday after, Christmas) are computed by
-  rule — Memorial Day is the last Monday of May, Good Friday comes from Easter, etc. A holiday
-  that lands on a weekend isn't counted. **Nothing needs updating when 2027 arrives** — pick the
-  new year and it's already correct.
+- **The calendar builds itself for any year.** Paid company holidays (New Year's Day, MLK Day,
+  Good Friday, Memorial Day, Juneteenth, Independence Day, Labor Day, Veterans Day, Thanksgiving
+  + the Friday after, Christmas) are computed by rule — Memorial Day is the last Monday of May,
+  Good Friday comes from Easter, MLK Day is the 3rd Monday of January, etc. A holiday that lands
+  on a weekend isn't counted. **Nothing needs updating when 2027 arrives** — pick the new year and
+  it's already correct. View or customize the list any year via the **Holidays** button.
 - **Working days** = weekdays in the month − paid holidays that fall on a weekday.
 - **Hourly** (e.g. Jorge): Regular hours = working days × hours/day − time off. You can also type
   the **actual hours worked** straight into the Reg/Sal cell to override the auto value (it turns
