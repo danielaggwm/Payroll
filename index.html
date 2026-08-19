@@ -242,6 +242,8 @@ async function boot(){
   if(!DATA){ DATA=deepCopy(SEED); fromRepo=true; }
   if(!DATA.company.year) DATA.company.year = Math.max(DATA.company.startYear||now.getFullYear(), now.getFullYear());
   if(fromRepo) markExported(); // browser copy matches the repo file on a clean load
+  if(fsaSupported){ try{ fileHandle=(await idbGet("fileHandle"))||null; }catch(e){} }
+  updateFileLabel();
   render();
 }
 function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(DATA)); }
@@ -255,12 +257,45 @@ async function reloadFromFile(){
     DATA=await r.json(); save(); markExported(); render(); toast("Reloaded from data.json"); }
   catch(e){ if(confirm("Couldn't read data.json (did you open the file directly instead of hosting it?). Reset to the built-in starting setup instead?")){ DATA=deepCopy(SEED); save(); markExported(); render(); toast("Reset"); } }
 }
-function exportJSON(){
+// download fallback (older browsers / file:// context)
+function exportDownload(){
   const blob=new Blob([JSON.stringify(DATA,null,2)],{type:"application/json"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="data.json"; a.click(); URL.revokeObjectURL(a.href);
   markExported(); render();
-  toast("data.json downloaded — commit it to your repo to save it");
+  toast("data.json downloaded — replace it in your repo folder & commit");
 }
+/* ---- direct file save (File System Access API, Chrome/Edge) ---- */
+let fileHandle=null;
+const fsaSupported = ("showSaveFilePicker" in window);
+function idb(){ return new Promise((res,rej)=>{ const r=indexedDB.open("brk_fs",1);
+  r.onupgradeneeded=()=>r.result.createObjectStore("kv"); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+async function idbSet(k,v){ const db=await idb(); return new Promise((res,rej)=>{ const t=db.transaction("kv","readwrite"); t.objectStore("kv").put(v,k); t.oncomplete=()=>res(); t.onerror=()=>rej(t.error); }); }
+async function idbGet(k){ const db=await idb(); return new Promise((res,rej)=>{ const t=db.transaction("kv","readonly"); const q=t.objectStore("kv").get(k); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); }); }
+async function verifyPerm(h){ const o={mode:"readwrite"};
+  if(await h.queryPermission(o)==="granted") return true;
+  if(await h.requestPermission(o)==="granted") return true;
+  return false; }
+async function writeHandle(){ const w=await fileHandle.createWritable(); await w.write(JSON.stringify(DATA,null,2)); await w.close(); }
+async function saveToFile(){
+  if(!fsaSupported){ exportDownload(); return; }
+  try{
+    if(!fileHandle){
+      fileHandle=await window.showSaveFilePicker({suggestedName:"data.json",
+        types:[{description:"JSON file",accept:{"application/json":[".json"]}}]});
+      try{ await idbSet("fileHandle",fileHandle); }catch(e){}
+      updateFileLabel();
+    }
+    if(!await verifyPerm(fileHandle)){ toast("Allow edit access to save directly"); return; }
+    await writeHandle(); markExported(); updateFileLabel(); render();
+    toast("Saved to data.json ✓ — commit & push to publish");
+  }catch(e){ if(e && e.name==="AbortError") return;
+    console.error(e); toast("Couldn't write the file — downloaded a copy instead"); exportDownload(); }
+}
+async function relinkFile(){ fileHandle=null; try{ await idbSet("fileHandle",null); }catch(e){} saveToFile(); }
+function updateFileLabel(){ const b=document.getElementById("exportBtn"); if(!b) return;
+  b.textContent = fsaSupported ? (fileHandle ? "Save data.json" : "Link data.json") : "↓ data.json";
+  b.title = fsaSupported ? (fileHandle ? "Overwrite your data.json directly, then commit & push"
+      : "Pick your data.json once so this can save straight to it") : "Download data.json to commit to GitHub"; }
 function importJSON(file){ const fr=new FileReader();
   fr.onload=()=>{ try{ DATA=JSON.parse(fr.result); save(); markExported(); render(); toast("Imported"); }catch(e){ alert("That file isn't valid JSON."); } };
   fr.readAsText(file); }
@@ -721,7 +756,9 @@ let toastT; function toast(m){ const t=document.getElementById("toast"); t.textC
 function initTheme(){ document.documentElement.setAttribute("data-theme", localStorage.getItem("brk_theme")||"dark"); }
 document.getElementById("themeBtn").onclick=()=>{ const c=document.documentElement.getAttribute("data-theme")==="light"?"dark":"light";
   document.documentElement.setAttribute("data-theme",c); localStorage.setItem("brk_theme",c); };
-document.getElementById("exportBtn").onclick=exportJSON;
+document.getElementById("exportBtn").onclick=saveToFile;
+document.getElementById("exportBtn").oncontextmenu=(e)=>{ if(!fsaSupported||!fileHandle) return;
+  e.preventDefault(); if(confirm("Re-link a different data.json file to save to?")) relinkFile(); };
 document.getElementById("importBtn").onclick=()=>document.getElementById("fileInput").click();
 document.getElementById("fileInput").onchange=e=>{ if(e.target.files[0]) importJSON(e.target.files[0]); };
 document.getElementById("empBtn").onclick=openEmpList;
