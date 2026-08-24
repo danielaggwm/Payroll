@@ -176,6 +176,7 @@
     <div class="field"><label class="fl">Email</label><input class="f" id="lg-email" type="email" placeholder="admin@brickellmg.com"></div>
     <div class="field"><label class="fl">Password</label><input class="f" id="lg-pass" type="password"></div>
     <button class="btn primary" id="lg-btn" style="width:100%">Sign in</button>
+    <div style="text-align:center;margin-top:12px"><a href="#" id="lg-forgot" style="font-size:13px;text-decoration:none">Forgot password?</a></div>
     <div class="err" id="lg-err"></div>
   </div>
 </div>
@@ -205,7 +206,7 @@
 
 <script type="module">
 import { auth, db, ADMIN_EMAIL } from "./db.js";
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 /* =====================================================================
    Brickell Payroll & PTO Tracker
@@ -393,6 +394,15 @@ async function doAdminLogin(){
   document.getElementById("lg-btn").disabled=true;
   try{ await signInWithEmailAndPassword(auth,em,pw); }
   catch(e){ document.getElementById("lg-err").textContent="Sign in failed: "+(e.code||e.message); document.getElementById("lg-btn").disabled=false; }
+}
+async function forgotPassword(){
+  const err=document.getElementById("lg-err"); err.style.color="";
+  const em=document.getElementById("lg-email").value.trim();
+  if(!em){ err.textContent="Type your email above first, then click Forgot password."; return; }
+  try{ await sendPasswordResetEmail(auth,em);
+    err.style.color="var(--green)"; err.textContent="If that email has an account, a reset link is on its way. Check your inbox (and spam)."; }
+  catch(e){ if((e.code||"").includes("invalid-email")){ err.textContent="That doesn't look like a valid email."; }
+    else { err.style.color="var(--green)"; err.textContent="If that email has an account, a reset link is on its way. Check your inbox (and spam)."; } }
 }
 async function boot(){
   initTheme();
@@ -913,6 +923,7 @@ document.getElementById("refreshBtn").onclick=async()=>{ try{ await loadFromFire
 document.getElementById("signoutBtn").onclick=()=>signOut(auth);
 document.getElementById("lg-btn").onclick=doAdminLogin;
 document.getElementById("lg-pass").addEventListener("keydown",e=>{ if(e.key==="Enter") doAdminLogin(); });
+document.getElementById("lg-forgot").onclick=(e)=>{ e.preventDefault(); forgotPassword(); };
 document.getElementById("empBtn").onclick=openEmpList;
 document.getElementById("holBtn").onclick=()=>openHolidays(false);
 boot();

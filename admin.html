@@ -44,6 +44,7 @@
     <div class="field"><label class="fl">Email</label><input class="f" id="li-email" type="email" placeholder="admin@brickellmg.com"></div>
     <div class="field"><label class="fl">Password</label><input class="f" id="li-pass" type="password"></div>
     <button class="btn primary" id="li-btn" style="width:100%">Sign in</button>
+    <div style="text-align:center;margin-top:12px"><a href="#" id="li-forgot" style="font-size:13px;text-decoration:none">Forgot password?</a></div>
     <div class="err" id="li-err"></div>
   </div>
 </div>
@@ -69,7 +70,7 @@
 
 <script type="module">
 import { auth, db, ADMIN_EMAIL } from "./db.js";
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 import * as C from "./core.js";
 
@@ -80,6 +81,16 @@ document.documentElement.setAttribute("data-theme", localStorage.getItem("brk_th
 $("themeBtn").onclick=()=>{ const c=document.documentElement.getAttribute("data-theme")==="light"?"dark":"light"; document.documentElement.setAttribute("data-theme",c); localStorage.setItem("brk_theme",c); };
 
 $("li-btn").onclick=login; $("li-pass").addEventListener("keydown",e=>{if(e.key==="Enter")login();});
+$("li-forgot").onclick=(e)=>{ e.preventDefault(); forgotPw(); };
+async function forgotPw(){
+  const err=$("li-err"); err.style.color="";
+  const em=$("li-email").value.trim();
+  if(!em){ err.textContent="Type your email above first, then click Forgot password."; return; }
+  try{ await sendPasswordResetEmail(auth,em);
+    err.style.color="var(--green)"; err.textContent="If that email has an account, a reset link is on its way. Check your inbox (and spam)."; }
+  catch(e){ if((e.code||"").includes("invalid-email")){ err.textContent="That doesn't look like a valid email."; }
+    else { err.style.color="var(--green)"; err.textContent="If that email has an account, a reset link is on its way. Check your inbox (and spam)."; } }
+}
 async function login(){ $("li-err").textContent=""; const em=$("li-email").value.trim(), pw=$("li-pass").value;
   if(!em||!pw){ $("li-err").textContent="Enter email and password."; return; }
   $("li-btn").disabled=true;

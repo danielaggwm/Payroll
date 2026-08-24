@@ -83,6 +83,7 @@
     <div class="field"><label class="fl">Email</label><input class="f" id="li-email" type="email" autocomplete="username" placeholder="you@example.com"></div>
     <div class="field"><label class="fl">Password</label><input class="f" id="li-pass" type="password" autocomplete="current-password" placeholder="••••••••"></div>
     <button class="btn primary" id="li-btn" style="width:100%">Sign in</button>
+    <div style="text-align:center;margin-top:12px"><a href="#" id="li-forgot" style="font-size:13px;text-decoration:none">Forgot password?</a></div>
     <div class="err" id="li-err"></div>
   </div>
 </div>
@@ -103,7 +104,7 @@
 
 <script type="module">
 import { auth, db } from "./db.js";
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import { collection, doc, getDoc, getDocs, setDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 import * as C from "./core.js";
 
@@ -118,6 +119,16 @@ $("themeBtn").onclick=()=>{ const c=document.documentElement.getAttribute("data-
 /* ---------- auth ---------- */
 $("li-btn").onclick=doLogin;
 $("li-pass").addEventListener("keydown",e=>{ if(e.key==="Enter") doLogin(); });
+$("li-forgot").onclick=(e)=>{ e.preventDefault(); forgotPassword(); };
+async function forgotPassword(){
+  const err=$("li-err"); err.style.color="";
+  const em=$("li-email").value.trim();
+  if(!em){ err.textContent="Type your email above first, then click Forgot password."; return; }
+  try{ await sendPasswordResetEmail(auth,em);
+    err.style.color="var(--green)"; err.textContent="If that email has an account, a reset link is on its way. Check your inbox (and spam)."; }
+  catch(e){ if((e.code||"").includes("invalid-email")){ err.textContent="That doesn't look like a valid email."; }
+    else { err.style.color="var(--green)"; err.textContent="If that email has an account, a reset link is on its way. Check your inbox (and spam)."; } }
+}
 async function doLogin(){
   $("li-err").textContent="";
   const email=$("li-email").value.trim(), pass=$("li-pass").value;
