@@ -1,0 +1,52 @@
+rules_version = '2';
+// Brickell Payroll — Firestore security rules.
+// Paste this whole file into Firebase Console → Firestore Database → Rules → Publish.
+//
+// Model:
+//   config/company                     -> company settings, policy, holiday overrides
+//   employees/{empId}                  -> profile, entitlements, priorUsed, email
+//   employees/{empId}/timesheets/{YYYY-MM} -> one month's entry, with a "status" field
+//
+// The admin (admin@brickellmg.com) can do anything. Every other signed-in person is an
+// employee who can only read/write THEIR OWN timesheets (matched by their login email),
+// only while a month is not yet approved, and can never mark a month approved themselves.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn(){ return request.auth != null; }
+    function isAdmin(){ return isSignedIn() && request.auth.token.email == 'admin@brickellmg.com'; }
+    // For timesheets we look up the parent employee's email.
+    function ownerEmail(empId){
+      return get(/databases/$(database)/documents/employees/$(empId)).data.email;
+    }
+    function isOwner(empId){ return isSignedIn() && ownerEmail(empId) == request.auth.token.email; }
+
+    // Company config — any signed-in user may read (needed for the calendar); admin writes.
+    match /config/{doc} {
+      allow read:  if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Employee profiles — admin manages; the employee may read only their own record
+    // (matched directly on the document's email — no extra lookup).
+    match /employees/{empId} {
+      allow read:  if isAdmin() || (isSignedIn() && resource.data.email == request.auth.token.email);
+      allow write: if isAdmin();
+
+      // Monthly timesheets.
+      match /timesheets/{ym} {
+        allow read: if isAdmin() || isOwner(empId);
+
+        // Employees may create/edit their own month only while it is draft or submitted;
+        // they cannot touch a month once the admin has approved it, and cannot self-approve.
+        allow create: if isAdmin()
+          || (isOwner(empId) && request.resource.data.status in ['draft','submitted']);
+        allow update: if isAdmin()
+          || (isOwner(empId)
+              && resource.data.status != 'approved'
+              && request.resource.data.status in ['draft','submitted']);
+        allow delete: if isAdmin();
+      }
+    }
+  }
+}
