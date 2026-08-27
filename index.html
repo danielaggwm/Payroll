@@ -740,7 +740,7 @@ function renderYear(){
       <div class="u">Sick ${fd(Y.sickUsed)}d · Personal ${fd(Y.persUsed)}d · OT ${fh(Y.ot)}h</div></div>`; }).join("");
   return `<h2 class="section">Calendar &amp; totals — ${y}<span class="hint">days-in-month &amp; working days auto-calculate for any year</span>
       <span class="spacer"></span><button class="btn small" id="csvAllBtn">↓ Export all (CSV)</button></h2>
-    <div class="panel pad"><table><thead>${head}</thead><tbody>${body}${tot}</tbody></table></div>
+    <div class="panel pad"><div style="overflow-x:auto"><table><thead>${head}</thead><tbody>${body}${tot}</tbody></table></div></div>
     <h2 class="section">Time off at a glance</h2><div class="grid cards">${pto}</div>`;
 }
 
