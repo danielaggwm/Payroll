@@ -178,6 +178,7 @@
     <button class="btn primary" id="lg-btn" style="width:100%">Sign in</button>
     <div style="text-align:center;margin-top:12px"><a href="#" id="lg-forgot" style="font-size:13px;text-decoration:none">Forgot password?</a></div>
     <div class="err" id="lg-err"></div>
+    <div style="text-align:center;border-top:1px solid var(--line);margin-top:16px;padding-top:14px"><a href="employee.html" style="font-size:13px;text-decoration:none;color:var(--accent);font-weight:600">Employee portal →</a></div>
   </div>
 </div>
 <div id="adminApp" class="wrap hide">
@@ -470,7 +471,7 @@ function isActiveMonth(y,m){ const k=mkey(y,m), nowK=mkey(now.getFullYear(),now.
 
 function mkey(y,m){ return y+"-"+String(m).padStart(2,"0"); }
 function getRec(emp,y,m){ return (emp.months&&emp.months[mkey(y,m)])||{}; }
-const MONTH_VALUE_FIELDS=["vac","sick","pday","ot","adj","miles","reimbursement","reghOverride","salaryHoursOverride","note","bonus"];
+const MONTH_VALUE_FIELDS=["vac","sick","pday","ot","adj","miles","tolls","reimbursement","reghOverride","salaryHoursOverride","note","bonus"];
 function setField(empId,y,m,field,value){
   const emp=DATA.employees.find(e=>e.id===empId); if(!emp.months) emp.months={};
   const k=mkey(y,m); if(!emp.months[k]) emp.months[k]={};
@@ -488,7 +489,9 @@ function computeMonth(emp,y,m){
   const vacD=vacH/hpd, sickD=sickH/hpd, pdayD=pdayH/hpd;
   const ot=+rec.ot||0, adj=(emp.type==="hourly")?(+rec.adj||0):0;
   const miles=+rec.miles||0, mileagePay=miles*(DATA.company.mileageRate||0);
+  const tolls=+rec.tolls||0;
   const reimb=+rec.reimbursement||0;
+  const reimbTotal=+(mileagePay+tolls+reimb).toFixed(2);
   const bonus=(rec.bonus!=null?+rec.bonus:(emp.monthlyBonus||0));
   const hol=hpd*meta.holidayCount;
   let salh=0,regh=0,total=0,base=0;
@@ -500,15 +503,15 @@ function computeMonth(emp,y,m){
     total=regh+hol+ot+adj+ptoH; base=regh;
   }
   return {meta,hpd,salh,regh,base,hol,ot,adj,vacD,sickD,pdayD,vacH,sickH,pdayH,ptoH,
-    miles,mileagePay,reimb,bonus,total:+total.toFixed(2),note:rec.note||null,status:rec.status||"draft",active:isActiveMonth(y,m)};
+    miles,mileagePay,tolls,reimb,reimbTotal,bonus,total:+total.toFixed(2),note:rec.note||null,status:rec.status||"draft",active:isActiveMonth(y,m)};
 }
 function priorUsed(emp,y){ const p=(emp.priorUsed&&emp.priorUsed[String(y)])||{};
   return {v:+p.vacationDays||0,s:+p.sickDays||0,p:+p.personalDays||0}; }
 function ytd(emp,y){
-  const acc={base:0,salh:0,regh:0,hol:0,ot:0,adj:0,vacD:0,sickD:0,pdayD:0,bonus:0,reimb:0,mileagePay:0,miles:0,total:0,byMonth:[]};
+  const acc={base:0,salh:0,regh:0,hol:0,ot:0,adj:0,vacD:0,sickD:0,pdayD:0,bonus:0,reimb:0,tolls:0,reimbTotal:0,mileagePay:0,miles:0,total:0,byMonth:[]};
   for(let m=1;m<=12;m++){ const c=computeMonth(emp,y,m); acc.byMonth.push(c);
     if(!c.active) continue;
-    ["base","salh","regh","hol","ot","adj","vacD","sickD","pdayD","bonus","reimb","mileagePay","miles","total"].forEach(k=>acc[k]+=c[k]); }
+    ["base","salh","regh","hol","ot","adj","vacD","sickD","pdayD","bonus","reimb","tolls","reimbTotal","mileagePay","miles","total"].forEach(k=>acc[k]+=c[k]); }
   const pr=priorUsed(emp,y);
   acc.vacUsed=+(acc.vacD+pr.v).toFixed(2); acc.sickUsed=+(acc.sickD+pr.s).toFixed(2); acc.persUsed=+(acc.pdayD+pr.p).toFixed(2);
   Object.keys(acc).forEach(k=>{ if(typeof acc[k]==="number") acc[k]=+acc[k].toFixed(2); });
@@ -578,6 +581,7 @@ function renderMonth(){
       <td>${ptoInp('sick')}</td>
       <td>${ptoInp('pday')}</td>
       <td>${inp('miles','0',true)}</td>
+      <td>${inp('tolls','0.00',true)}</td>
       <td class="total">${fh(c.total)}</td>
       <td class="l">${statusCell(emp,c)}</td>
     </tr>`;
@@ -611,12 +615,12 @@ function renderMonth(){
     <div style="overflow-x:auto"><table><thead><tr>
       <th class="l">Employee</th><th>Reg / Sal h</th><th>Holiday h</th><th>OT h</th>
       <th title="Prior-month leftover-day correction (hourly only). Enter a negative number to deduct.">Adj h</th>
-      <th>Vac ${PTO_UNIT==='hours'?'h':'d'}</th><th>Sick ${PTO_UNIT==='hours'?'h':'d'}</th><th>Pers ${PTO_UNIT==='hours'?'h':'d'}</th><th>Miles</th><th>Total h</th><th class="l">Status</th>
+      <th>Vac ${PTO_UNIT==='hours'?'h':'d'}</th><th>Sick ${PTO_UNIT==='hours'?'h':'d'}</th><th>Pers ${PTO_UNIT==='hours'?'h':'d'}</th><th>Miles</th><th title="Toll dollars for reimbursement">Tolls $</th><th>Total h</th><th class="l">Status</th>
     </tr></thead><tbody>${rows}</tbody></table></div>
     <details class="hol"><summary>Paid holidays this month</summary><ul>${holItems}</ul></details>
     ${notes.map(c=>`<div class="note">${esc(c.note)}</div>`).join("")}
     <div class="info" style="margin-top:12px">
-      <b>How this month works:</b> the <b>Holiday</b> column calculates from the calendar. You type OT (hours), Vacation/Sick/Personal, and Miles.
+      <b>How this month works:</b> the <b>Holiday</b> column calculates from the calendar. You type OT (hours), Vacation/Sick/Personal, Miles, and Tolls ($). Mileage $ (miles × rate) plus tolls make up the reimbursement total, shown in the employee view and the payroll summary.
       Use the <b>Days / Hours</b> toggle (top right) to enter time off however it was taken — a full day, or a partial like <b>5.5 hours</b> of vacation or <b>4 hours</b> of sick. Both are stored the same way, so you can switch anytime.
       <b>Reg / Sal h</b> auto-fills from the working days (shown as the faint placeholder) — but you can type the <b>actual hours worked</b> to override it, e.g. if you know Jorge didn't work the full amount; clear the cell to snap back to auto.
       <b>Adj</b> is for the 26th-cutoff reconciliation: when you run this month's payroll, verify last month's leftover days (after the 26th) and enter a negative number here to deduct any hours someone was short. Salaried staff don't use Adj.
@@ -637,8 +641,10 @@ function renderSubmit(y){
     if(c.sickH) L.push(["Sick",`${fd(c.sickD)} d (${fh(c.sickH)} h)`]);
     if(c.pdayH) L.push(["Personal",`${fd(c.pdayD)} d (${fh(c.pdayH)} h)`]);
     if(c.bonus) L.push(["Bonus / allowance",money(c.bonus)]);
-    if(c.reimb) L.push(["Reimbursement",money(c.reimb)]);
-    if(c.mileagePay) L.push([`Mileage (${fd(c.miles)} mi)`,money(c.mileagePay)]);
+    if(c.mileagePay) L.push([`Mileage (${fd(c.miles)} mi @ ${money(DATA.company.mileageRate||0)})`,money(c.mileagePay)]);
+    if(c.tolls) L.push(["Tolls",money(c.tolls)]);
+    if(c.reimb) L.push(["Other reimbursement",money(c.reimb)]);
+    if(c.reimbTotal) L.push(["Reimbursement total",money(c.reimbTotal)]);
     L.push(["TOTAL HOURS",fh(c.total)]);
     return `<div class="col"><div class="submit-box">
       <div style="font-weight:700;margin-bottom:8px">${esc(emp.firstName)} ${esc(emp.lastName)}
@@ -676,10 +682,12 @@ function renderEmployee(emp){
     <div class="faint" style="font-size:12px;margin-top:10px">
       Allowance: ${ent.vacationDays??DATA.policy.defaultVacationDays} vacation · ${ent.sickDays??DATA.policy.defaultSickDays} sick · ${ent.personalDays??DATA.policy.defaultPersonalDays} personal days.
       <button class="subtle-btn" id="editEmpBtn">edit employee</button></div></div>`;
-  const extra=(Y.bonus||Y.reimb||Y.mileagePay)?`<div class="grid cards" style="margin-top:16px">
+  const extra=(Y.bonus||Y.reimbTotal)?`<div class="grid cards" style="margin-top:16px">
       ${Y.bonus?`<div class="panel stat"><div class="k">Bonus / allowance YTD</div><div class="v">${money(Y.bonus)}</div></div>`:""}
-      ${Y.mileagePay?`<div class="panel stat"><div class="k">Mileage YTD</div><div class="v">${money(Y.mileagePay)}</div><div class="u">${fd(Y.miles)} miles</div></div>`:""}
-      ${Y.reimb?`<div class="panel stat"><div class="k">Reimbursements YTD</div><div class="v">${money(Y.reimb)}</div></div>`:""}
+      ${Y.mileagePay?`<div class="panel stat"><div class="k">Mileage YTD</div><div class="v">${money(Y.mileagePay)}</div><div class="u">${fd(Y.miles)} miles @ ${money(DATA.company.mileageRate||0)}</div></div>`:""}
+      ${Y.tolls?`<div class="panel stat"><div class="k">Tolls YTD</div><div class="v">${money(Y.tolls)}</div></div>`:""}
+      ${Y.reimb?`<div class="panel stat"><div class="k">Other reimb. YTD</div><div class="v">${money(Y.reimb)}</div></div>`:""}
+      ${Y.reimbTotal?`<div class="panel stat"><div class="k">Reimbursement total YTD</div><div class="v">${money(Y.reimbTotal)}</div><div class="u">mileage + tolls + other</div></div>`:""}
     </div>`:"";
   return `
   <div class="row" style="align-items:center;margin-bottom:16px">
@@ -864,11 +872,11 @@ function closeModal(){ document.getElementById("modalHost").innerHTML=""; }
 /* ---------------- CSV export ---------------- */
 function empCSV(emp){
   const y=curYear(); const rows=[["Employee",emp.firstName+" "+emp.lastName],["Type",emp.type],["Year",y],[]];
-  rows.push(["Month","WorkingDays","Base(Reg/Sal) h","Holiday h","OT h","Adj h","Vacation d","Sick d","Personal d","Miles","Mileage $","Reimb $","Bonus $","Total h"]);
+  rows.push(["Month","WorkingDays","Base(Reg/Sal) h","Holiday h","OT h","Adj h","Vacation d","Sick d","Personal d","Miles","Mileage $","Tolls $","Other Reimb $","Reimb Total $","Bonus $","Total h"]);
   for(let m=1;m<=12;m++){ const c=computeMonth(emp,y,m);
-    rows.push([MONTHS[m-1],c.meta.workingDays,c.base,c.hol,c.ot,c.adj,c.vacD,c.sickD,c.pdayD,c.miles,c.mileagePay.toFixed(2),c.reimb.toFixed(2),c.bonus,c.total]); }
+    rows.push([MONTHS[m-1],c.meta.workingDays,c.base,c.hol,c.ot,c.adj,c.vacD,c.sickD,c.pdayD,c.miles,c.mileagePay.toFixed(2),c.tolls.toFixed(2),c.reimb.toFixed(2),c.reimbTotal.toFixed(2),c.bonus,c.total]); }
   const Y=ytd(emp,y);
-  rows.push(["TOTAL","",Y.base,Y.hol,Y.ot,Y.adj,Y.vacD,Y.sickD,Y.pdayD,Y.miles,Y.mileagePay.toFixed(2),Y.reimb.toFixed(2),Y.bonus,Y.total]);
+  rows.push(["TOTAL","",Y.base,Y.hol,Y.ot,Y.adj,Y.vacD,Y.sickD,Y.pdayD,Y.miles,Y.mileagePay.toFixed(2),Y.tolls.toFixed(2),Y.reimb.toFixed(2),Y.reimbTotal.toFixed(2),Y.bonus,Y.total]);
   return rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(",")).join("\n");
 }
 function downloadCSV(name,csv){ const blob=new Blob([csv],{type:"text/csv"}); const a=document.createElement("a");
@@ -908,8 +916,10 @@ function copySummary(){ const y=curYear(); let out=`Payroll — ${DATA.company.n
     if(c.sickH) out+=`  Sick: ${fd(c.sickD)} d (${fh(c.sickH)} h)\n`;
     if(c.pdayH) out+=`  Personal: ${fd(c.pdayD)} d (${fh(c.pdayH)} h)\n`;
     if(c.bonus) out+=`  Bonus/allowance: ${money(c.bonus)}\n`;
-    if(c.reimb) out+=`  Reimbursement: ${money(c.reimb)}\n`;
-    if(c.mileagePay) out+=`  Mileage: ${money(c.mileagePay)} (${fd(c.miles)} mi)\n`;
+    if(c.mileagePay) out+=`  Mileage: ${money(c.mileagePay)} (${fd(c.miles)} mi @ ${money(DATA.company.mileageRate||0)})\n`;
+    if(c.tolls) out+=`  Tolls: ${money(c.tolls)}\n`;
+    if(c.reimb) out+=`  Other reimbursement: ${money(c.reimb)}\n`;
+    if(c.reimbTotal) out+=`  Reimbursement total: ${money(c.reimbTotal)}\n`;
     out+=`  TOTAL HOURS: ${fh(c.total)}\n`; });
   navigator.clipboard.writeText(out).then(()=>toast("Summary copied"),()=>prompt("Copy this:",out)); }
 

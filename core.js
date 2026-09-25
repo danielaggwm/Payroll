@@ -59,7 +59,9 @@ export function computeMonth(company, emp, rec, y, m){
   const vacD=vacH/hpd, sickD=sickH/hpd, pdayD=pdayH/hpd;
   const ot=+rec.ot||0, adj=(emp.type==="hourly")?(+rec.adj||0):0;
   const miles=+rec.miles||0, mileagePay=miles*(company.mileageRate||0);
+  const tolls=+rec.tolls||0;
   const reimb=+rec.reimbursement||0;
+  const reimbTotal=round2(mileagePay+tolls+reimb);
   const bonus=(rec.bonus!=null?+rec.bonus:(emp.monthlyBonus||0));
   const hol=hpd*meta.holidayCount;
   let salh=0, regh=0, total=0, base=0;
@@ -71,7 +73,7 @@ export function computeMonth(company, emp, rec, y, m){
     total=regh+hol+ot+adj+ptoH; base=regh;
   }
   return {meta,hpd,salh,regh,base,hol,ot,adj,vacH,sickH,pdayH,vacD,sickD,pdayD,ptoH,
-    miles,mileagePay,reimb,bonus,total:round2(total),note:rec.note||null,status:rec.status||"draft"};
+    miles,mileagePay,tolls,reimb,reimbTotal,bonus,total:round2(total),note:rec.note||null,status:rec.status||"draft"};
 }
 
 /* ---------- active-month window ----------
