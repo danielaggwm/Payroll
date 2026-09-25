@@ -619,12 +619,15 @@ function renderMonth(){
     </tr></thead><tbody>${rows}</tbody></table></div>
     <details class="hol"><summary>Paid holidays this month</summary><ul>${holItems}</ul></details>
     ${notes.map(c=>`<div class="note">${esc(c.note)}</div>`).join("")}
-    <div class="info" style="margin-top:12px">
-      <b>How this month works:</b> the <b>Holiday</b> column calculates from the calendar. You type OT (hours), Vacation/Sick/Personal, Miles, and Tolls ($). Mileage $ (miles × rate) plus tolls make up the reimbursement total, shown in the employee view and the payroll summary.
+    <details class="info" style="margin-top:12px">
+      <summary style="cursor:pointer;font-weight:700;color:var(--ink)">How this month works</summary>
+      <div style="margin-top:10px">
+      The <b>Holiday</b> column calculates from the calendar. You type OT (hours), Vacation/Sick/Personal, Miles, and Tolls ($). Mileage $ (miles × rate) plus tolls make up the reimbursement total, shown in the employee view and the payroll summary.
       Use the <b>Days / Hours</b> toggle (top right) to enter time off however it was taken — a full day, or a partial like <b>5.5 hours</b> of vacation or <b>4 hours</b> of sick. Both are stored the same way, so you can switch anytime.
       <b>Reg / Sal h</b> auto-fills from the working days (shown as the faint placeholder) — but you can type the <b>actual hours worked</b> to override it, e.g. if you know Jorge didn't work the full amount; clear the cell to snap back to auto.
       <b>Adj</b> is for the 26th-cutoff reconciliation: when you run this month's payroll, verify last month's leftover days (after the 26th) and enter a negative number here to deduct any hours someone was short. Salaried staff don't use Adj.
-    </div>
+      </div>
+    </details>
   </div>
   ${renderSubmit(y)}`;
 }
