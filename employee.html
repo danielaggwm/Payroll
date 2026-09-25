@@ -175,6 +175,25 @@ async function loadTimesheets(){
 }
 function rec(){ return TIMESHEETS[C.mkey(YEAR,CUR_MONTH)]||{}; }
 
+/* Keep this screen honest: whenever the employee comes back to the tab, re-pull the
+   latest timesheets from the server and re-render. This means an admin's approve / reject /
+   edit shows up here within a moment, and a tab left open for days can never display stale
+   numbers that disagree with the admin dashboard. Guarded so it never wipes something the
+   employee is actively typing. */
+let REFRESHING=false;
+async function refreshFromServer(){
+  if(REFRESHING || !auth.currentUser || !EMPID || !EMP) return;
+  // don't yank data out from under an in-progress edit
+  const a=document.activeElement;
+  if(a && a.tagName==="INPUT" && !a.disabled) return;
+  REFRESHING=true;
+  try{ await loadTimesheets(); render(); }
+  catch(e){ console.error("refresh failed", e); }
+  finally{ REFRESHING=false; }
+}
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") refreshFromServer(); });
+window.addEventListener("focus", refreshFromServer);
+
 /* ---------- render ---------- */
 function render(){
   if(!EMP){ $("whoami").textContent="Not linked"; $("body").innerHTML=`<div class="panel pad"><b>No employee profile is linked to ${C.esc(auth.currentUser.email)}.</b><div class="muted" style="margin-top:6px">Ask your admin to add you.</div></div>`; return; }
@@ -182,7 +201,7 @@ function render(){
   const c=C.computeMonth(COMPANY,EMP,rec(),YEAR,CUR_MONTH);
   const sal=EMP.type==="salaried", approved=c.status==="approved", submitted=c.status==="submitted";
   const locked=approved;
-  const bal=C.balances(EMP,TIMESHEETS,YEAR);
+  const bal=C.balances(EMP,TIMESHEETS,YEAR,COMPANY);
   const monthOpts=C.MONTHS.map((mn,i)=>`<option value="${i+1}" ${i+1===CUR_MONTH?"selected":""}>${mn} ${YEAR}</option>`).join("");
 
   const disp=(f)=>{ const v=rec()[f]; if(v==null||v==="") return ""; return PTO_UNIT==="hours"?C.round2(v):C.round2(v/(EMP.hoursPerDay||8)); };

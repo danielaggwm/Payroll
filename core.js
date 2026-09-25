@@ -74,14 +74,29 @@ export function computeMonth(company, emp, rec, y, m){
     miles,mileagePay,reimb,bonus,total:round2(total),note:rec.note||null,status:rec.status||"draft"};
 }
 
+/* ---------- active-month window ----------
+   A month counts toward totals once tracking has started and it isn't in the future.
+   This MUST match index.html's isActiveMonth() so the employee and admin dashboards
+   always agree on which months are included. */
+export function activeWindow(company){
+  const c=company||{};
+  const ts = c.trackingStart || (((c.startYear)|| (new Date()).getFullYear())+"-01");
+  const n=new Date(); const nowK=mkey(n.getFullYear(), n.getMonth()+1);
+  return {from:ts, to:nowK};
+}
+export function isActiveMonthKey(k, company){ const w=activeWindow(company); return k>=w.from && k<=w.to; }
+
 /* ---------- PTO balances (days) for a year ----------
-   timesheets: map of "YYYY-MM" -> rec, for this employee & year (any status counts as used)
+   timesheets: map of "YYYY-MM" -> rec, for this employee & year.
+   Only months inside the active tracking window are counted (same rule as the admin),
+   so a stale, future, or pre-tracking draft can never inflate "used". Pre-tracking
+   usage belongs in priorUsed instead.
 */
-export function balances(emp, timesheets, y){
+export function balances(emp, timesheets, y, company){
   const hpd=emp.hoursPerDay||8;
   const pr=(emp.priorUsed&&emp.priorUsed[String(y)])||{};
   let vacH=0, sickH=0, pdayH=0;
-  Object.keys(timesheets||{}).forEach(k=>{ if(k.slice(0,4)==String(y)){ const r=timesheets[k]||{};
+  Object.keys(timesheets||{}).forEach(k=>{ if(k.slice(0,4)==String(y) && isActiveMonthKey(k, company)){ const r=timesheets[k]||{};
     vacH+=+r.vac||0; sickH+=+r.sick||0; pdayH+=+r.pday||0; } });
   const used={ vacation: round2(vacH/hpd + (+pr.vacationDays||0)),
                sick:     round2(sickH/hpd + (+pr.sickDays||0)),
